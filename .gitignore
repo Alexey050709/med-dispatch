@@ -7,12 +7,19 @@ __pycache__/
 config.json
 .env
 
-# Папки с медицинскими данными и архивами
+# Папки с медицинскими данными и архивами 
 data/
 input_epicrisis/
 output_archives/
 temp/
 *.zip
+*.doc
 *.docx
 *.pdf
 *.xlsx
+*.rtf
+
+# Исходные файлы и папки с данными
+Входящие_Эпикризы/
+Готовые_Архивы/
+temp_sorting/
