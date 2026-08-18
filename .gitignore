@@ -1,0 +1,18 @@
+# Виртуальное окружение Python
+venv/
+.venv/
+__pycache__/
+
+# Локальные файлы конфигурации с реальными паролями
+config.json
+.env
+
+# Папки с медицинскими данными и архивами
+data/
+input_epicrisis/
+output_archives/
+temp/
+*.zip
+*.docx
+*.pdf
+*.xlsx
