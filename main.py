@@ -34,7 +34,7 @@ def detect_clinic(filename: str) -> str:
         if 1 <= num <= 42:
             return f"Поликлиника №{num}"
 
-    # ЦРБ и районные
+    # Районные / ЦРБ
     if any(k in name_clean for k in ["црб", "район", "р н", "больница"]):
         return "ЦРБ и Районные больницы"
 
@@ -50,7 +50,7 @@ def process_epicrisis():
     emails_map = config.get("clinics_emails", {})
 
     if not source_dir.exists():
-        print(f"📁 Папка с файлами не найдена: {source_dir.resolve()}")
+        print(f"📁 Создана папка для входящих файлов: {source_dir.resolve()}")
         source_dir.mkdir(parents=True, exist_ok=True)
         return
 
@@ -66,13 +66,12 @@ def process_epicrisis():
     files = [f for f in source_dir.iterdir() if f.is_file() and f.suffix.lower() in allowed_exts]
 
     if not files:
-        print("⚠️ В папке нет подходящих файлов для обработки.")
+        print("⚠️ В папке нет файлов для обработки.")
         return
 
-    print(f"\n🔍 Найдено файлов: {len(files)}")
-    print("=" * 60)
+    print(f"\n🔍 Всего найдено документов: {len(files)}")
+    print("=" * 65)
 
-    # 1. Сортировка по временным папкам
     stats = {}
     for file_path in files:
         clinic_name = detect_clinic(file_path.name)
@@ -80,40 +79,50 @@ def process_epicrisis():
         target_folder.mkdir(exist_ok=True)
         shutil.copy2(file_path, target_folder / file_path.name)
         stats[clinic_name] = stats.get(clinic_name, 0) + 1
-        print(f"📄 {file_path.name[:35]:<35} ➡️ [{clinic_name}]")
+        
+        route = "📧 EMAIL" if clinic_name in emails_map else ("📋 СМДО" if clinic_name != "Нераспознанные" else "❓ ПРОВЕРКА")
+        print(f"[{route:<8}] {file_path.name[:35]:<35} ➡️ {clinic_name}")
 
-    print("=" * 60)
-    print("📦 Архивация и подготовка к отправке:\n")
+    print("=" * 65)
+    print("📦 Формирование архивов и распределение:\n")
 
-    # 2. Создание архивов и отправка
     for clinic_folder in temp_dir.iterdir():
         if not clinic_folder.is_dir():
             continue
 
         clinic_name = clinic_folder.name
         clean_name = clinic_name.replace(" ", "_")
-        archive_name = output_dir / f"{clean_name}_{today_str}.zip"
+        
+        # Определяем подпапку назначения
+        if clinic_name in emails_map:
+            subfolder = output_dir / "Для_Отправки_Email"
+        elif clinic_name == "Нераспознанные":
+            subfolder = output_dir / "Требуют_Проверки"
+        else:
+            subfolder = output_dir / "Для_СМДО"
 
-        # Формируем ZIP
+        subfolder.mkdir(parents=True, exist_ok=True)
+        archive_name = subfolder / f"{clean_name}_{today_str}.zip"
+
         with zipfile.ZipFile(archive_name, "w", zipfile.ZIP_DEFLATED) as zipf:
             for doc in clinic_folder.iterdir():
                 zipf.write(doc, arcname=doc.name)
 
         print(f"✅ Создан архив: {archive_name.name} ({stats[clinic_name]} файлов)")
 
-        # Определяем email получателя
-        recipient_email = emails_map.get(clinic_name)
-        if clinic_name == "Нераспознанные":
-            print(f"  ⚠️ Архив [{clinic_name}] оставлен локально для ручной проверки.")
-        elif recipient_email:
+        # Отправляем только те, которые предназначены для Email
+        if clinic_name in emails_map:
+            recipient_email = emails_map[clinic_name]
             send_clinic_archive(clinic_name, recipient_email, archive_name, today_str, config)
+        elif clinic_name == "Нераспознанные":
+            print(f"  ⚠️ Внимание: файлы не распознаны, проверьте архив вручную.")
         else:
-            print(f"  ⚠️ Для [{clinic_name}] не указан email в config.json — отправка пропущена.")
+            print(f"  📋 Архив сохранен в папку СМДО (отправка по email не требуется).")
         print()
 
     shutil.rmtree(temp_dir)
-    print("=" * 60)
-    print(f"🎉 Процесс завершен! Архивы лежат в: {output_dir.resolve()}\n")
+    print("=" * 65)
+    print(f"🎉 Обработка завершена! Архивы рассортированы в: {output_dir.resolve()}\n")
 
 if __name__ == "__main__":
     process_epicrisis()

@@ -3,20 +3,21 @@
   "output_folder": "./Готовые_Архивы",
   "dry_run": true,
   "smtp_settings": {
-    "server": "smtp.your-mail-server.com",
+    "server": "mail.hospital.by",
     "port": 465,
     "use_ssl": true,
     "use_tls": false,
-    "sender_email": "hospital@example.med",
-    "sender_password": "YOUR_PASSWORD_HERE",
+    "sender_email": "info@hospital.by",
+    "sender_password": "YOUR_PASSWORD",
     "subject_template": "Выписные эпикризы за {date} — {clinic_name}",
-    "body_template": "Здравствуйте!\n\nВо вложении направляем архив с выписными эпикризами для {clinic_name} за {date}."
+    "body_template": "Здравствуйте!\n\nВо вложении архив с выписными эпикризами за {date} для {clinic_name}."
   },
   "clinics_emails": {
-    "Поликлиника №1": "gp1@example.med",
-    "Поликлиника №2": "gp2@example.med",
-    "Поликлиника №10": "gp10@example.med",
-    "Детская поликлиника №1": "dgp1@example.med",
-    "ЦРБ и Районные больницы": "crb@example.med"
+    "Поликлиника №12": "12gp@example.by",
+    "Поликлиника №25": "25gp@example.by",
+    "Поликлиника №29": "29gp@example.by",
+    "Поликлиника №31": "31gp@example.by",
+    "Поликлиника №42": "42gp@example.by",
+    "Детская поликлиника №17": "17dgp@example.by"
   }
 }
