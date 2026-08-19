@@ -1,0 +1,22 @@
+{
+  "source_folder": "./Входящие_Эпикризы",
+  "output_folder": "./Готовые_Архивы",
+  "dry_run": true,
+  "smtp_settings": {
+    "server": "smtp.your-mail-server.com",
+    "port": 465,
+    "use_ssl": true,
+    "use_tls": false,
+    "sender_email": "hospital@example.med",
+    "sender_password": "YOUR_PASSWORD_HERE",
+    "subject_template": "Выписные эпикризы за {date} — {clinic_name}",
+    "body_template": "Здравствуйте!\n\nВо вложении направляем архив с выписными эпикризами для {clinic_name} за {date}."
+  },
+  "clinics_emails": {
+    "Поликлиника №1": "gp1@example.med",
+    "Поликлиника №2": "gp2@example.med",
+    "Поликлиника №10": "gp10@example.med",
+    "Детская поликлиника №1": "dgp1@example.med",
+    "ЦРБ и Районные больницы": "crb@example.med"
+  }
+}
