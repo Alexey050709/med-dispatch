@@ -7,10 +7,14 @@ import json
 import threading
 from datetime import datetime
 from pathlib import Path
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
+import customtkinter as ctk
+from tkinter import filedialog
 
 from mailer import send_clinic_archive
+
+# Настройка внешнего вида CustomTkinter
+ctk.set_appearance_mode("System")  # Автовыбор темы Windows (Темная/Светлая)
+ctk.set_default_color_theme("blue")
 
 
 def get_base_dir() -> Path:
@@ -73,94 +77,123 @@ def detect_clinic(filename: str) -> str:
     return "Нераспознанные"
 
 
-class MedDispatchApp(tk.Tk):
+class MedDispatchApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("MedDispatch — Маршрутизация эпикризов (УЗ «ГКБСМП»)")
-        self.geometry("820x640")
-        self.minsize(700, 500)
+        self.title("MedDispatch — УЗ «ГКБСМП»")
+        self.geometry("880x700")
+        self.minsize(800, 600)
 
         self.config_data = load_config()
         self.setup_ui()
 
     def setup_ui(self):
-        # Стиль
-        style = ttk.Style(self)
-        style.theme_use("clam")
+        # 1. Шапка приложения
+        header_frame = ctk.CTkFrame(self, corner_radius=10)
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
 
-        # Заголовок
-        header_frame = ttk.Frame(self, padding="10 10 10 5")
-        header_frame.pack(fill=tk.X)
-        title_lbl = ttk.Label(header_frame, text="🏥 MedDispatch: Сортировка, Архивация и Отправка", font=("Segoe UI", 12, "bold"))
-        title_lbl.pack(side=tk.LEFT)
+        title_lbl = ctk.CTkLabel(header_frame, text="🏥 MedDispatch", font=ctk.CTkFont(size=22, weight="bold"))
+        title_lbl.pack(side="left", padx=(15, 10), pady=12)
 
-        # Панель путей
-        path_frame = ttk.LabelFrame(self, text="Папки", padding="10")
-        path_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Яркий контрастный подзаголовок
+        sub_lbl = ctk.CTkLabel(
+            header_frame,
+            text="Маршрутизация эпикризов • УЗ «ГКБСМП»",
+            text_color=("#0284c7", "#38bdf8"),  # Яркий синий/бирюзовый
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        sub_lbl.pack(side="left", padx=5, pady=12)
 
-        ttk.Label(path_frame, text="Входящие эпикризы:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        self.src_entry = ttk.Entry(path_frame, width=60)
-        self.src_entry.grid(row=0, column=1, padx=5, pady=2, sticky=tk.EW)
+        # 2. Карточка выбора путей
+        path_card = ctk.CTkFrame(self, corner_radius=10)
+        path_card.pack(fill="x", padx=15, pady=5)
+
+        ctk.CTkLabel(path_card, text="📁 Настройка директорий", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, columnspan=3, sticky="w", padx=15, pady=(12, 8))
+
+        ctk.CTkLabel(path_card, text="Входящие файлы:", font=ctk.CTkFont(size=13)).grid(row=1, column=0, sticky="w", padx=15, pady=6)
+        self.src_entry = ctk.CTkEntry(path_card, width=480, font=ctk.CTkFont(size=12))
+        self.src_entry.grid(row=1, column=1, padx=5, pady=6, sticky="ew")
         self.src_entry.insert(0, self.config_data.get("source_folder", "./Входящие_Эпикризы"))
-        ttk.Button(path_frame, text="Обзор...", command=self.browse_src).grid(row=0, column=2, pady=2)
+        ctk.CTkButton(path_card, text="Обзор...", width=90, command=self.browse_src).grid(row=1, column=2, padx=15, pady=6)
 
-        ttk.Label(path_frame, text="Папка с архивами:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        self.out_entry = ttk.Entry(path_frame, width=60)
-        self.out_entry.grid(row=1, column=1, padx=5, pady=2, sticky=tk.EW)
+        ctk.CTkLabel(path_card, text="Куда сохранять:", font=ctk.CTkFont(size=13)).grid(row=2, column=0, sticky="w", padx=15, pady=(6, 14))
+        self.out_entry = ctk.CTkEntry(path_card, width=480, font=ctk.CTkFont(size=12))
+        self.out_entry.grid(row=2, column=1, padx=5, pady=(6, 14), sticky="ew")
         self.out_entry.insert(0, self.config_data.get("output_folder", "./Готовые_Архивы"))
-        ttk.Button(path_frame, text="Обзор...", command=self.browse_out).grid(row=1, column=2, pady=2)
+        ctk.CTkButton(path_card, text="Обзор...", width=90, command=self.browse_out).grid(row=2, column=2, padx=15, pady=(6, 14))
 
-        path_frame.columnconfigure(1, weight=1)
+        path_card.columnconfigure(1, weight=1)
 
-        # Опции
-        opts_frame = ttk.Frame(self, padding="10 5")
-        opts_frame.pack(fill=tk.X, padx=10)
+        # 3. Панель настроек и действий
+        action_frame = ctk.CTkFrame(self, fg_color="transparent")
+        action_frame.pack(fill="x", padx=15, pady=10)
 
-        self.dry_run_var = tk.BooleanVar(value=self.config_data.get("dry_run", False))
-        dry_chk = ttk.Checkbutton(opts_frame, text="Тестовый режим (Dry Run) — без реальной отправки писем", variable=self.dry_run_var)
-        dry_chk.pack(side=tk.LEFT)
+        self.dry_run_var = ctk.BooleanVar(value=self.config_data.get("dry_run", False))
+        self.dry_chk = ctk.CTkSwitch(action_frame, text="Тестовый режим (Dry Run)", font=ctk.CTkFont(size=13), variable=self.dry_run_var)
+        self.dry_chk.pack(side="left", padx=5)
 
-        # Кнопки управления
-        btn_frame = ttk.Frame(self, padding="5 10")
-        btn_frame.pack(fill=tk.X, padx=10)
+        # Основная кнопка запуска
+        self.run_btn = ctk.CTkButton(
+            action_frame,
+            text="▶  Запустить обработку",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#0284c7", "#0284c7"),
+            hover_color=("#0369a1", "#0369a1"),
+            height=40,
+            corner_radius=8,
+            command=self.start_processing_thread
+        )
+        self.run_btn.pack(side="right", padx=5)
 
-        self.run_btn = tk.Button(btn_frame, text="▶ Запустить обработку", bg="#007acc", fg="white", font=("Segoe UI", 10, "bold"), padx=15, pady=5, command=self.start_processing_thread)
-        self.run_btn.pack(side=tk.LEFT, padx=5)
+        # Яркая заметная кнопка открытия архивов
+        self.open_out_btn = ctk.CTkButton(
+            action_frame,
+            text="📂 Открыть архивы",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#059669", "#10b981"),  # Насыщенный зеленый цвет
+            hover_color=("#047857", "#059669"),
+            text_color="white",
+            height=40,
+            corner_radius=8,
+            command=self.open_output_folder
+        )
+        self.open_out_btn.pack(side="right", padx=5)
 
-        self.open_out_btn = ttk.Button(btn_frame, text="📂 Открыть папку с архивами", command=self.open_output_folder)
-        self.open_out_btn.pack(side=tk.LEFT, padx=5)
+        # 4. Окно терминала логов
+        log_frame = ctk.CTkFrame(self, corner_radius=10)
+        log_frame.pack(fill="both", expand=True, padx=15, pady=(5, 15))
 
-        # Окно лога
-        log_frame = ttk.LabelFrame(self, text="Журнал операций", padding="5")
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        self.log_text = ctk.CTkTextbox(
+            log_frame,
+            font=("Consolas", 12),
+            activate_scrollbars=True,
+            fg_color=("#f8fafc", "#0f172a")  # Светлый / темно-графитовый фон
+        )
+        self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, font=("Consolas", 9), bg="#1e1e1e", fg="#d4d4d4")
-        self.log_text.pack(fill=tk.BOTH, expand=True)
+        # Настройка цветовых тегов для текста
+        self.log_text.tag_config("info", foreground="#38bdf8")       # Голубой
+        self.log_text.tag_config("success", foreground="#34d399")    # Изумрудно-зеленый
+        self.log_text.tag_config("warn", foreground="#fbbf24")       # Янтарно-желтый
+        self.log_text.tag_config("error", foreground="#f87171")      # Красный
+        self.log_text.tag_config("header", foreground="#facc15")     # Ярко-желтый заголовок
 
-        self.log_text.tag_config("info", foreground="#569cd6")
-        self.log_text.tag_config("success", foreground="#4ec9b0")
-        self.log_text.tag_config("warn", foreground="#ce9178")
-        self.log_text.tag_config("error", foreground="#f44747")
-        self.log_text.tag_config("header", foreground="#dcdcaa", font=("Consolas", 9, "bold"))
-
-        # Статус-бар внизу
-        self.status_lbl = ttk.Label(self, text="Готов к работе", relief=tk.SUNKEN, padding="3 5")
-        self.status_lbl.pack(side=tk.BOTTOM, fill=tk.X)
+        self.log("Готов к работе. Нажмите «Запустить обработку».", "info")
 
     def log(self, text: str, tag: str = "info"):
-        self.log_text.insert(tk.END, text + "\n", tag)
-        self.log_text.see(tk.END)
+        self.log_text.insert("end", text + "\n", tag)
+        self.log_text.see("end")
 
     def browse_src(self):
         folder = filedialog.askdirectory(title="Выберите папку с входящими эпикризами")
         if folder:
-            self.src_entry.delete(0, tk.END)
+            self.src_entry.delete(0, "end")
             self.src_entry.insert(0, folder)
 
     def browse_out(self):
         folder = filedialog.askdirectory(title="Выберите папку для сохранения архивов")
         if folder:
-            self.out_entry.delete(0, tk.END)
+            self.out_entry.delete(0, "end")
             self.out_entry.insert(0, folder)
 
     def open_output_folder(self):
@@ -170,8 +203,7 @@ class MedDispatchApp(tk.Tk):
         os.startfile(out_path.resolve())
 
     def start_processing_thread(self):
-        self.run_btn.config(state=tk.DISABLED)
-        self.status_lbl.config(text="Идет обработка файлов...")
+        self.run_btn.configure(state="disabled", text="⏳ Обработка...")
         threading.Thread(target=self.run_pipeline, daemon=True).start()
 
     def run_pipeline(self):
@@ -188,13 +220,14 @@ class MedDispatchApp(tk.Tk):
             emails_map = cfg.get("clinics_emails", {})
             today_str = datetime.now().strftime("%Y-%m-%d")
 
-            self.log_text.delete(1.0, tk.END)
+            self.log_text.delete("1.0", "end")
             self.log(f"[{datetime.now().strftime('%H:%M:%S')}] Начало процесса обработки...", "header")
+            self.log("=" * 65, "header")
 
             if not source_dir.exists():
                 self.log(f"❌ Исходная папка не найдена: {source_dir}", "error")
                 source_dir.mkdir(parents=True, exist_ok=True)
-                self.log(f"📁 Папка создана. Поместите туда файлы и нажмите запуск.", "info")
+                self.log(f"📁 Создана пустая папка. Поместите туда файлы и повторите запуск.", "info")
                 return
 
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -205,11 +238,11 @@ class MedDispatchApp(tk.Tk):
             files = [f for f in source_dir.iterdir() if f.is_file() and f.suffix.lower() in allowed_exts]
 
             if not files:
-                self.log("⚠️ В папке нет подходящих файлов для обработки.", "warn")
+                self.log("⚠️ В папке нет подходящих файлов (.rtf, .pdf, .docx).", "warn")
                 return
 
-            self.log(f"🔍 Найдено файлов: {len(files)}", "info")
-            self.log("-" * 60, "info")
+            self.log(f"🔍 Найдено документов: {len(files)}", "info")
+            self.log("-" * 65, "info")
 
             temp_dir = base_dir / "temp_sorting"
             if temp_dir.exists():
@@ -219,15 +252,15 @@ class MedDispatchApp(tk.Tk):
             unmatched_count = 0
             stats = {}
 
-            # Сортировка
+            # Сортировка файлов
             for file_path in files:
                 clinic_name = detect_clinic(file_path.name)
-                
-                # Если файл не распознан — копируем прямо в Требуют_Проверки (без архивации)
+
+                # Нераспознанные просто копируются как есть в Требуют_Проверки
                 if clinic_name == "Нераспознанные":
                     shutil.copy2(file_path, unmatched_dir / file_path.name)
                     unmatched_count += 1
-                    self.log(f"[❓ ПРОВЕРКА] {file_path.name} ➡️ скопирован в 'Требуют_Проверки'", "warn")
+                    self.log(f"[❓ ПРОВЕРКА] {file_path.name} ➡️ в папку 'Требуют_Проверки'", "warn")
                     continue
 
                 target_folder = temp_dir / clinic_name
@@ -238,10 +271,10 @@ class MedDispatchApp(tk.Tk):
                 route = "📧 EMAIL" if clinic_name in emails_map else "📋 СМДО"
                 self.log(f"[{route:<8}] {file_path.name} ➡️ {clinic_name}", "info")
 
-            self.log("-" * 60, "info")
-            self.log("📦 Формирование ZIP-архивов и рассылка...", "header")
+            self.log("-" * 65, "info")
+            self.log("📦 Формирование ZIP-архивов и отправка:\n", "header")
 
-            # Архивирование распознанных поликлиник
+            # Архивирование и отправка
             for clinic_folder in temp_dir.iterdir():
                 if not clinic_folder.is_dir():
                     continue
@@ -263,26 +296,25 @@ class MedDispatchApp(tk.Tk):
 
                 self.log(f"✅ Создан архив: {archive_name.name} ({stats[clinic_name]} файлов)", "success")
 
-                # Отправка email
+                # Отправка почты
                 if clinic_name in emails_map:
                     recipient_email = emails_map[clinic_name]
                     ok = send_clinic_archive(clinic_name, recipient_email, archive_name, today_str, cfg)
                     if ok:
-                        self.log(f"  ✉️ Успешно: [{clinic_name}] ➡️ {recipient_email}", "success")
+                        self.log(f"  ✉️ Успешно отправлено ➡️ {recipient_email}", "success")
                     else:
-                        self.log(f"  ❌ Ошибка отправки: [{clinic_name}] ➡️ {recipient_email}", "error")
+                        self.log(f"  ❌ Ошибка отправки ➡️ {recipient_email}", "error")
                 else:
-                    self.log(f"  📋 Архив сохранен в 'Для_СМДО'", "info")
+                    self.log(f"  📋 Архив сохранен в папку 'Для_СМДО'", "info")
 
             shutil.rmtree(temp_dir)
-            self.log("=" * 60, "header")
+            self.log("=" * 65, "header")
             self.log(f"🎉 Обработка завершена! Нераспознанных файлов: {unmatched_count}", "success")
 
         except Exception as e:
-            self.log(f"❌ Критическая ошибка: {e}", "error")
+            self.log(f"❌ Ошибка: {e}", "error")
         finally:
-            self.run_btn.config(state=tk.NORMAL)
-            self.status_lbl.config(text="Готов к работе")
+            self.run_btn.configure(state="normal", text="▶  Запустить обработку")
 
 
 if __name__ == "__main__":
