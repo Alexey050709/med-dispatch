@@ -3,50 +3,88 @@ import re
 import shutil
 import zipfile
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from mailer import send_clinic_archive
+from pathlib import Path
+
+def get_base_dir() -> Path:
+    """Определяет реальную папку, где лежит .exe или .py файл"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    return Path(__file__).parent
 
 def load_config():
-    config_path = Path("config.json")
+    # Ищем config.json строго рядом с .exe файлом
+    config_path = get_base_dir() / "config.json"
     if not config_path.exists():
-        print("❌ Ошибка: Файл config.json не найден!")
+        print(f"❌ Ошибка: Файл config.json не найден рядом с программой ({config_path})!")
         return None
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def detect_clinic(filename: str) -> str:
-    name_clean = filename.lower().replace("_", " ").replace("-", " ")
+    """
+    Распознавание поликлиники по стандарту начальницы:
+    Префикс до первого пробела: 10ГП, 17ДГП, ЦРБ и т.д.
+    """
+    clean_name = filename.strip().lower()
     
-    # Детские поликлиники (1 - 25, без 24)
-    child_pattern = r"(?:дет|дгп|дп)\D*(\d+)"
-    child_match = re.search(child_pattern, name_clean)
-    if child_match:
-        num = int(child_match.group(1))
+    # 1. Основной режим: проверка первого токена до пробела
+    first_token = clean_name.split()[0] if clean_name.split() else ""
+    
+    # Очищаем токен от лишних знаков препинания на случай опечаток (например "10гп," или "10гп_")
+    first_token = re.sub(r"[^\w]", "", first_token)
+
+    # Проверка детских поликлиник по префиксу (например: "17дгп", "3дгп", "17дп")
+    child_prefix = re.match(r"^(\d+)(?:дгп|дп)$", first_token)
+    if child_prefix:
+        num = int(child_prefix.group(1))
         if 1 <= num <= 25 and num != 24:
             return f"Детская поликлиника №{num}"
 
-    # Взрослые поликлиники (1 - 42)
-    adult_pattern = r"(?:гп|п\s*ка|пол|поликлиника)\D*(\d+)"
-    adult_match = re.search(adult_pattern, name_clean)
-    if adult_match:
-        num = int(adult_match.group(1))
+    # Проверка взрослых поликлиник по префиксу (например: "10гп", "25гп", "12гп")
+    adult_prefix = re.match(r"^(\d+)(?:гп|п)$", first_token)
+    if adult_prefix:
+        num = int(adult_prefix.group(1))
         if 1 <= num <= 42:
             return f"Поликлиника №{num}"
 
-    # Районные / ЦРБ
-    if any(k in name_clean for k in ["црб", "район", "р н", "больница"]):
+    # Проверка ЦРБ в первом токене
+    if "црб" in first_token or first_token.startswith("црб"):
+        return "ЦРБ и Районные больницы"
+
+    # =========================================================================
+    # 2. РЕЗЕРВНЫЙ РЕЖИМ (страховка от опечаток врачей, если забыли стандарт)
+    # =========================================================================
+    # Если врач случайно поставил пробел: "17 дгп Иванов" или написал старым стилем: "гп10"
+    child_fallback = re.search(r"(?:^|\D)(\d+)\s*(?:дгп|дп)|(?:дгп|дп)\s*(\d+)", clean_name)
+    if child_fallback:
+        num = int(child_fallback.group(1) or child_fallback.group(2))
+        if 1 <= num <= 25 and num != 24:
+            return f"Детская поликлиника №{num}"
+
+    adult_fallback = re.search(r"(?:^|\D)(\d+)\s*(?:гп|п)|(?:гп|п-ка|пол)\s*(\d+)", clean_name)
+    if adult_fallback:
+        num = int(adult_fallback.group(1) or adult_fallback.group(2))
+        if 1 <= num <= 42:
+            return f"Поликлиника №{num}"
+
+    if "црб" in clean_name or "район" in clean_name:
         return "ЦРБ и Районные больницы"
 
     return "Нераспознанные"
+
 
 def process_epicrisis():
     config = load_config()
     if not config:
         return
 
-    source_dir = Path(config.get("source_folder", "./Входящие_Эпикризы"))
-    output_dir = Path(config.get("output_folder", "./Готовые_Архивы"))
+    base_dir = get_base_dir()
+    source_dir = base_dir / config.get("source_folder", "Входящие_Эпикризы")
+    output_dir = base_dir / config.get("output_folder", "Готовые_Архивы")
     emails_map = config.get("clinics_emails", {})
 
     if not source_dir.exists():
@@ -126,3 +164,4 @@ def process_epicrisis():
 
 if __name__ == "__main__":
     process_epicrisis()
+    input("\nНажмите Enter для выхода...")
