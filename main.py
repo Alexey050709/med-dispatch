@@ -103,18 +103,18 @@ class MedDispatchApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("MedDispatch — УЗ «ГКБСМП»")
-        self.geometry("920x740")
-        self.minsize(840, 640)
+        self.geometry("960x780")
+        self.minsize(880, 680)
 
         self.config_data = load_config()
-        self.clinic_rows = []  # Список для хранения виджетов настроек поликлиник
+        self.clinic_rows = []
 
         self.setup_ui()
 
     def setup_ui(self):
         # 1. Шапка приложения
         header_frame = ctk.CTkFrame(self, corner_radius=10)
-        header_frame.pack(fill="x", padx=15, pady=(15, 5))
+        header_frame.pack(fill="x", padx=15, pady=(12, 5))
 
         title_lbl = ctk.CTkLabel(header_frame, text="🏥 MedDispatch", font=ctk.CTkFont(size=22, weight="bold"))
         title_lbl.pack(side="left", padx=(15, 10), pady=10)
@@ -129,39 +129,38 @@ class MedDispatchApp(ctk.CTk):
 
         # 2. Вкладки (Tabs)
         self.tabview = ctk.CTkTabview(self, corner_radius=10)
-        self.tabview.pack(fill="both", expand=True, padx=15, pady=10)
+        self.tabview.pack(fill="both", expand=True, padx=15, pady=8)
 
         self.tab_main = self.tabview.add("🚀 Маршрутизация")
-        self.tab_settings = self.tabview.add("⚙️ Настройки и Поликлиники")
+        self.tab_settings = self.tabview.add("⚙️ Настройки и Шаблоны")
 
         self.setup_main_tab()
         self.setup_settings_tab()
 
     # ==========================================
-    # ВКЛАДКА 1: ОСНОВНОЙ РАБОЧИЙ ЭКРАН
+    # ВКЛАДКА 1: МАРШРУТИЗАЦИЯ
     # ==========================================
     def setup_main_tab(self):
-        # Карточка путей
         path_card = ctk.CTkFrame(self.tab_main, corner_radius=10)
-        path_card.pack(fill="x", padx=10, pady=(5, 10))
+        path_card.pack(fill="x", padx=10, pady=(5, 8))
 
-        ctk.CTkLabel(path_card, text="📁 Рабочие директории", font=ctk.CTkFont(size=13, weight="bold")).grid(row=0, column=0, columnspan=3, sticky="w", padx=12, pady=(10, 5))
+        ctk.CTkLabel(path_card, text="📁 Рабочие директории", font=ctk.CTkFont(size=13, weight="bold")).grid(row=0, column=0, columnspan=3, sticky="w", padx=12, pady=(8, 4))
 
-        ctk.CTkLabel(path_card, text="Входящие файлы:").grid(row=1, column=0, sticky="w", padx=12, pady=5)
+        ctk.CTkLabel(path_card, text="Входящие файлы:").grid(row=1, column=0, sticky="w", padx=12, pady=4)
         self.src_entry = ctk.CTkEntry(path_card, width=480)
-        self.src_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        self.src_entry.grid(row=1, column=1, padx=5, pady=4, sticky="ew")
         self.src_entry.insert(0, self.config_data.get("source_folder", "./Входящие_Эпикризы"))
-        ctk.CTkButton(path_card, text="Обзор...", width=80, command=self.browse_src).grid(row=1, column=2, padx=12, pady=5)
+        ctk.CTkButton(path_card, text="Обзор...", width=80, command=self.browse_src).grid(row=1, column=2, padx=12, pady=4)
 
-        ctk.CTkLabel(path_card, text="Куда сохранять:").grid(row=2, column=0, sticky="w", padx=12, pady=(5, 10))
+        ctk.CTkLabel(path_card, text="Куда сохранять:").grid(row=2, column=0, sticky="w", padx=12, pady=(4, 8))
         self.out_entry = ctk.CTkEntry(path_card, width=480)
-        self.out_entry.grid(row=2, column=1, padx=5, pady=(5, 10), sticky="ew")
+        self.out_entry.grid(row=2, column=1, padx=5, pady=(4, 8), sticky="ew")
         self.out_entry.insert(0, self.config_data.get("output_folder", "./Готовые_Архивы"))
-        ctk.CTkButton(path_card, text="Обзор...", width=80, command=self.browse_out).grid(row=2, column=2, padx=12, pady=(5, 10))
+        ctk.CTkButton(path_card, text="Обзор...", width=80, command=self.browse_out).grid(row=2, column=2, padx=12, pady=(4, 8))
 
         path_card.columnconfigure(1, weight=1)
 
-        # Панель управления
+        # Панель действий
         action_frame = ctk.CTkFrame(self.tab_main, fg_color="transparent")
         action_frame.pack(fill="x", padx=10, pady=5)
 
@@ -196,7 +195,7 @@ class MedDispatchApp(ctk.CTk):
 
         # Журнал логов
         log_frame = ctk.CTkFrame(self.tab_main, corner_radius=10)
-        log_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
+        log_frame.pack(fill="both", expand=True, padx=10, pady=(5, 8))
 
         self.log_text = ctk.CTkTextbox(log_frame, font=("Consolas", 12), activate_scrollbars=True, fg_color=("#f8fafc", "#0f172a"))
         self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
@@ -210,35 +209,66 @@ class MedDispatchApp(ctk.CTk):
         self.log("Готов к работе. Нажмите «Запустить обработку».", "info")
 
     # ==========================================
-    # ВКЛАДКА 2: РЕДАКТИРОВАНИЕ ПОЛИКЛИНИК И SMTP
+    # ВКЛАДКА 2: НАСТРОЙКИ, ПОЛИКЛИНИКИ И ШАБЛОН ПИСЬМА
     # ==========================================
     def setup_settings_tab(self):
-        # 1. Секция поликлиник
-        clinic_section = ctk.CTkFrame(self.tab_settings, corner_radius=10)
-        clinic_section.pack(fill="both", expand=True, padx=10, pady=5)
+        settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, corner_radius=10)
+        settings_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # 1. Поликлиники
+        clinic_section = ctk.CTkFrame(settings_scroll, corner_radius=10)
+        clinic_section.pack(fill="x", pady=(0, 10))
 
         head_bar = ctk.CTkFrame(clinic_section, fg_color="transparent")
-        head_bar.pack(fill="x", padx=10, pady=(10, 5))
+        head_bar.pack(fill="x", padx=10, pady=(8, 4))
 
-        ctk.CTkLabel(head_bar, text="📧 Поликлиники для отправки по Email", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left")
-        ctk.CTkButton(head_bar, text="➕ Добавить поликлинику", width=160, fg_color="#0284c7", command=lambda: self.add_clinic_row_ui("", "")).pack(side="right")
+        ctk.CTkLabel(head_bar, text="📧 Поликлиники для Email-рассылки", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left")
+        ctk.CTkButton(head_bar, text="➕ Добавить", width=110, height=28, fg_color="#0284c7", command=lambda: self.add_clinic_row_ui("", "")).pack(side="right")
 
-        # Прокручиваемый список поликлиник
-        self.clinics_scroll = ctk.CTkScrollableFrame(clinic_section, height=220, corner_radius=8)
-        self.clinics_scroll.pack(fill="both", expand=True, padx=10, pady=5)
+        self.clinics_scroll = ctk.CTkFrame(clinic_section, fg_color="transparent")
+        self.clinics_scroll.pack(fill="x", padx=10, pady=(0, 8))
 
-        # Заполняем текущими поликлиниками из config.json
         emails_map = self.config_data.get("clinics_emails", {})
         for clinic, email in emails_map.items():
             self.add_clinic_row_ui(clinic, email)
 
-        # 2. Секция настроек SMTP
-        smtp_section = ctk.CTkFrame(self.tab_settings, corner_radius=10)
-        smtp_section.pack(fill="x", padx=10, pady=5)
-
-        ctk.CTkLabel(smtp_section, text="⚙️ Настройки почтового сервера (G-Cloud / SMTP)", font=ctk.CTkFont(size=13, weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(8, 6))
+        # 2. Редактор шаблона письма
+        template_section = ctk.CTkFrame(settings_scroll, corner_radius=10)
+        template_section.pack(fill="x", pady=(0, 10))
 
         smtp_cfg = self.config_data.get("smtp_settings", {})
+
+        ctk.CTkLabel(template_section, text="✉️ Шаблон электронного письма", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=12, pady=(8, 2))
+        
+        hint_lbl = ctk.CTkLabel(
+            template_section,
+            text="💡 Переменные для подстановки: {date} — дата, {clinic_name} — название клиники",
+            font=ctk.CTkFont(size=11),
+            text_color=("#0284c7", "#38bdf8")
+        )
+        hint_lbl.pack(anchor="w", padx=12, pady=(0, 6))
+
+        # Тема письма
+        subj_frame = ctk.CTkFrame(template_section, fg_color="transparent")
+        subj_frame.pack(fill="x", padx=12, pady=2)
+        ctk.CTkLabel(subj_frame, text="Тема письма:", width=90, anchor="w").pack(side="left")
+        self.subject_entry = ctk.CTkEntry(subj_frame)
+        self.subject_entry.pack(side="left", fill="x", expand=True)
+        self.subject_entry.insert(0, smtp_cfg.get("subject_template", "Выписные эпикризы за {date} — УЗ «ГКБСМП»"))
+
+        # Текст письма
+        body_frame = ctk.CTkFrame(template_section, fg_color="transparent")
+        body_frame.pack(fill="x", padx=12, pady=(4, 10))
+        ctk.CTkLabel(body_frame, text="Текст письма:", width=90, anchor="nw").pack(side="left", pady=3)
+        self.body_textbox = ctk.CTkTextbox(body_frame, height=100, font=("Segoe UI", 12))
+        self.body_textbox.pack(side="left", fill="x", expand=True)
+        self.body_textbox.insert("1.0", smtp_cfg.get("body_template", "Здравствуйте!\n\nУЗ «Городская клиническая больница скорой медицинской помощи» направляет архив с выписными эпикризами за {date}.\n\nПолучатель: {clinic_name}\n\nС уважением,\nАдминистрация УЗ «ГКБСМП»"))
+
+        # 3. Настройки SMTP
+        smtp_section = ctk.CTkFrame(settings_scroll, corner_radius=10)
+        smtp_section.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(smtp_section, text="⚙️ Настройки почтового сервера (G-Cloud / beCloud)", font=ctk.CTkFont(size=13, weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(8, 6))
 
         ctk.CTkLabel(smtp_section, text="Сервер:").grid(row=1, column=0, sticky="w", padx=12, pady=3)
         self.smtp_server_entry = ctk.CTkEntry(smtp_section, width=200)
@@ -255,35 +285,32 @@ class MedDispatchApp(ctk.CTk):
         self.smtp_sender_entry.grid(row=2, column=1, padx=5, pady=3, sticky="w")
         self.smtp_sender_entry.insert(0, smtp_cfg.get("sender_email", "info@bsmp.by"))
 
-        ctk.CTkLabel(smtp_section, text="Пароль почты:").grid(row=2, column=2, sticky="w", padx=12, pady=3)
+        ctk.CTkLabel(smtp_section, text="Пароль:").grid(row=2, column=2, sticky="w", padx=12, pady=3)
         self.smtp_pass_entry = ctk.CTkEntry(smtp_section, width=160, show="*")
         self.smtp_pass_entry.grid(row=2, column=3, padx=5, pady=3, sticky="w")
         self.smtp_pass_entry.insert(0, smtp_cfg.get("sender_password", ""))
 
-        # 3. Кнопка сохранения всех настроек
-        save_bar = ctk.CTkFrame(self.tab_settings, fg_color="transparent")
-        save_bar.pack(fill="x", padx=10, pady=(5, 10))
-
+        # 4. Кнопка сохранения
         self.save_btn = ctk.CTkButton(
-            save_bar,
+            settings_scroll,
             text="💾  Сохранить все настройки в config.json",
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=("#059669", "#10b981"),
             hover_color=("#047857", "#059669"),
-            height=40,
+            height=42,
             command=self.save_all_settings_from_ui
         )
-        self.save_btn.pack(fill="x")
+        self.save_btn.pack(fill="x", pady=5)
 
     def add_clinic_row_ui(self, clinic_name: str, email: str):
         row_frame = ctk.CTkFrame(self.clinics_scroll, fg_color="transparent")
         row_frame.pack(fill="x", pady=3)
 
-        name_entry = ctk.CTkEntry(row_frame, width=220, placeholder_text="Название (напр. Поликлиника №10)")
+        name_entry = ctk.CTkEntry(row_frame, width=230, placeholder_text="Поликлиника (напр. Поликлиника №12)")
         name_entry.pack(side="left", padx=(0, 5))
         name_entry.insert(0, clinic_name)
 
-        email_entry = ctk.CTkEntry(row_frame, width=320, placeholder_text="Email (напр. 10gp@example.by)")
+        email_entry = ctk.CTkEntry(row_frame, width=330, placeholder_text="Email (напр. 12gp@example.by)")
         email_entry.pack(side="left", fill="x", expand=True, padx=5)
         email_entry.insert(0, email)
 
@@ -302,7 +329,7 @@ class MedDispatchApp(ctk.CTk):
 
     def save_all_settings_from_ui(self):
         try:
-            # 1. Собираем список поликлиник
+            # 1. Список поликлиник
             new_emails_map = {}
             for name_entry, email_entry, _ in self.clinic_rows:
                 c_name = name_entry.get().strip()
@@ -310,14 +337,16 @@ class MedDispatchApp(ctk.CTk):
                 if c_name and c_email:
                     new_emails_map[c_name] = c_email
 
-            # 2. Собираем SMTP параметры
+            # 2. SMTP и Шаблоны письма
             smtp_cfg = self.config_data.get("smtp_settings", {})
             smtp_cfg["server"] = self.smtp_server_entry.get().strip()
             smtp_cfg["port"] = int(self.smtp_port_entry.get().strip())
             smtp_cfg["sender_email"] = self.smtp_sender_entry.get().strip()
             smtp_cfg["sender_password"] = self.smtp_pass_entry.get().strip()
+            smtp_cfg["subject_template"] = self.subject_entry.get().strip()
+            smtp_cfg["body_template"] = self.body_textbox.get("1.0", "end-1c").strip()
 
-            # 3. Обновляем config_data
+            # 3. Сохранение
             self.config_data["clinics_emails"] = new_emails_map
             self.config_data["smtp_settings"] = smtp_cfg
             self.config_data["source_folder"] = self.src_entry.get().strip()
@@ -325,12 +354,12 @@ class MedDispatchApp(ctk.CTk):
             self.config_data["dry_run"] = self.dry_run_var.get()
 
             save_config(self.config_data)
-            messagebox.showinfo("Успех", "✅ Все настройки успешно сохранены в config.json!")
+            messagebox.showinfo("Успех", "✅ Все настройки и шаблон письма успешно сохранены в config.json!")
         except Exception as e:
             messagebox.showerror("Ошибка", f"Не удалось сохранить настройки: {e}")
 
     # ==========================================
-    # ОБЩИЕ МЕТОДЫ И ОБРАБОТКА
+    # ОБРАБОТКА
     # ==========================================
     def log(self, text: str, tag: str = "info"):
         self.log_text.insert("end", text + "\n", tag)
